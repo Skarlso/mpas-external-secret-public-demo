@@ -61,6 +61,9 @@ deploy-gitea
 p "deploying ingress"
 deploy-ingress
 
+p "installing external-secrets operator"
+deploy-external-secrets-operator
+
 p "create registry certificate secrets"
 create-registry-certificate-secrets
 

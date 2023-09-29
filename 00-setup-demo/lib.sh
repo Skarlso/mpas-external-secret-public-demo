@@ -80,6 +80,28 @@ function deploy-gitea {
     kubectl create secret -n gitea tls mkcert-tls --cert=./certs/cert.pem --key=./certs/key.pem
 }
 
+function deploy-external-secrets-operator {
+    kubectl apply -f ./manifests/external-secrets/install.yaml
+    kubectl wait --for=condition=Available=true Deployment/external-secrets --timeout=60s
+    kubectl wait --for=condition=Available=true Deployment/external-secrets-cert-controller --timeout=60s
+    kubectl wait --for=condition=Available=true Deployment/external-secrets-webhook --timeout=60s
+
+    # update the default service account so it can create secrets. normally this would be a specific service account
+    kubectl apply -f ./manifests/external-secrets/cluster_role.yaml
+    kubectl apply -f ./manifests/external-secrets/cluster_role_binding.yaml
+
+    # apply the secret replication
+    # apply the secret store
+    kubectl apply -f ./manifests/external-secrets/cluster_secret_store.yaml
+
+    # apply the external secret reconciliation objects
+    kubectl apply -f ./manifests/external-secrets/cluster_external_secret_cert.yaml
+    kubectl apply -f ./manifests/external-secrets/cluster_external_secret_dockerconfig.yaml
+    kubectl apply -f ./manifests/external-secrets/cluster_external_secret_git.yaml
+    kubectl apply -f ./manifests/external-secrets/cluster_external_secret_ocm_signing_keys.yaml
+    kubectl apply -f ./manifests/external-secrets/cluster_external_secret_ocm-dev-ca.yaml
+}
+
 function create-weave-gitops-component {
     (
         cd weave-gitops/ || return
@@ -95,17 +117,17 @@ function create-registry-certificate-secrets {
     cat ./ca-certs/alpine-ca.crt "$MKCERT_CA" > "$TMPFILE"
     # pre-create the project namespace so we can apply the certificate secrets immediately.
     # this is to make it easy on us later not having to patch anything.
-    declare -a namespaces=("ocm-system" "mpas-system" "mpas-ocm-applications")
-    for namespace in "${namespaces[@]}"
-    do
-        # ignore if already exists
-        kubectl create namespace "${namespace}" || true
-        kubectl create secret generic \
-          -n "${namespace}" ocm-registry-tls-certs \
-          --from-file=ca.crt="${MKCERT_CA}" \
-          --from-file=tls.crt="./certs/cert.pem" \
-          --from-file=tls.key="./certs/key.pem"
-    done
+    # declare -a namespaces=("ocm-system" "mpas-system" "mpas-ocm-applications")
+    # for namespace in "${namespaces[@]}"
+    # do
+    # ignore if already exists
+    kubectl create namespace ocm-system || true
+    kubectl create secret generic \
+        -n "ocm-system" ocm-registry-tls-certs \
+        --from-file=ca.crt="${MKCERT_CA}" \
+        --from-file=tls.crt="./certs/cert.pem" \
+        --from-file=tls.key="./certs/key.pem"
+    # done
 }
 
 # bootstrap will generate a certificate for the registry. Since the user itself doesn't care about it
@@ -139,10 +161,10 @@ function setup-ocm-system-signing-keys {
     kubectl create namespace flux-system || true
     kubectl create namespace mpas-ocm-applications || true
     kubectl create secret -n ocm-system generic ocm-signing --from-file=$SIGNING_KEY_NAME=./signing-keys/$SIGNING_KEY_NAME.rsa.pub
-    kubectl create secret -n mpas-system generic ocm-signing --from-file=$SIGNING_KEY_NAME=./signing-keys/$SIGNING_KEY_NAME.rsa.pub
-    kubectl create secret -n mpas-ocm-applications generic ocm-signing --from-file=$SIGNING_KEY_NAME=./signing-keys/$SIGNING_KEY_NAME.rsa.pub
+    # kubectl create secret -n mpas-system generic ocm-signing --from-file=$SIGNING_KEY_NAME=./signing-keys/$SIGNING_KEY_NAME.rsa.pub
+    # kubectl create secret -n mpas-ocm-applications generic ocm-signing --from-file=$SIGNING_KEY_NAME=./signing-keys/$SIGNING_KEY_NAME.rsa.pub
     kubectl create secret -n ocm-system generic ocm-dev-ca --from-file=ca-certificates.crt="$TMPFILE"
-    kubectl create secret -n flux-system generic ocm-dev-ca --from-file=ca-certificates.crt="$TMPFILE"
+    # kubectl create secret -n flux-system generic ocm-dev-ca --from-file=ca-certificates.crt="$TMPFILE"
     kubectl create secret -n default tls mkcert-tls --cert=./certs/cert.pem --key=./certs/key.pem
 }
 
@@ -222,35 +244,35 @@ function configure-gitea {
             --from-literal=username=ocm-admin \
             --from-literal=password=$TOKEN
 
-    kubectl create ns mpas-system || true
-    kubectl create secret -n mpas-system generic \
-        gitea-registry-credentials \
-            --from-literal=username=ocm-admin \
-            --from-literal=password=$TOKEN
+    # kubectl create ns mpas-system || true
+    # kubectl create secret -n mpas-system generic \
+    #     gitea-registry-credentials \
+    #         --from-literal=username=ocm-admin \
+    #         --from-literal=password=$TOKEN
 
-    kubectl create ns mpas-ocm-applications || true
-    kubectl create secret -n mpas-ocm-applications generic \
-        gitea-registry-credentials \
-            --from-literal=username=ocm-admin \
-            --from-literal=password=$TOKEN
+    # kubectl create ns mpas-ocm-applications || true
+    # kubectl create secret -n mpas-ocm-applications generic \
+    #     gitea-registry-credentials \
+    #         --from-literal=username=ocm-admin \
+    #         --from-literal=password=$TOKEN
 
-    kubectl create secret -n default docker-registry \
-        gitea-registry-credentials \
-            --docker-server=gitea.ocm.dev \
-            --docker-username=ocm-admin \
-            --docker-password=$TOKEN
+    # kubectl create secret -n default docker-registry \
+    #     gitea-registry-credentials \
+    #         --docker-server=gitea.ocm.dev \
+    #         --docker-username=ocm-admin \
+    #         --docker-password=$TOKEN
 
-    kubectl create secret -n mpas-system docker-registry \
+    kubectl create secret -n ocm-system docker-registry \
         pull-creds \
             --docker-server=gitea.ocm.dev \
             --docker-username=ocm-admin \
             --docker-password=$TOKEN
 
-    kubectl create secret -n mpas-ocm-applications docker-registry \
-        pull-creds \
-            --docker-server=gitea.ocm.dev \
-            --docker-username=ocm-admin \
-            --docker-password=$TOKEN
+    # kubectl create secret -n mpas-ocm-applications docker-registry \
+    #     pull-creds \
+    #         --docker-server=gitea.ocm.dev \
+    #         --docker-username=ocm-admin \
+    #         --docker-password=$TOKEN
 
     docker tag ghcr.io/open-component-model/podinfo:6.3.5-static gitea.ocm.dev/software-provider/podinfo:6.3.5-static
     docker tag ghcr.io/open-component-model/podinfo:6.3.6-static gitea.ocm.dev/software-provider/podinfo:6.3.6-static
