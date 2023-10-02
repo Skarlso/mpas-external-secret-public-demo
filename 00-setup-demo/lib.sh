@@ -98,7 +98,7 @@ function deploy-external-secrets-operator {
     kubectl apply -f ./manifests/external-secrets/cluster_external_secret_cert.yaml
     kubectl apply -f ./manifests/external-secrets/cluster_external_secret_dockerconfig.yaml
     kubectl apply -f ./manifests/external-secrets/cluster_external_secret_git.yaml
-    kubectl apply -f ./manifests/external-secrets/cluster_external_secret_ocm_signing_keys.yaml
+    kubectl apply -f ./manifests/external-secrets/cluster_external_secret_ocm_signing.yaml
     kubectl apply -f ./manifests/external-secrets/cluster_external_secret_ocm-dev-ca.yaml
 }
 
