@@ -64,8 +64,8 @@ deploy-ingress
 p "installing external-secrets operator"
 deploy-external-secrets-operator
 
-p "create registry certificate secrets"
-create-registry-certificate-secrets
+# p "create registry certificate secrets"
+# create-registry-certificate-secrets
 
 p "deploying ocm system signing keys"
 setup-ocm-system-signing-keys
