@@ -168,7 +168,6 @@ function deploy-mpas-controllers {
         --repository "${PRIVATE_REPO_NAME}" \
         --personal \
         --hostname gitea.ocm.dev \
-        --registry ghcr.io/skarlso/mpas-bootstrap-test-3 \
         --ca-file "${TMPFILE}"
 }
 
