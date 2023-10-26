@@ -47,14 +47,6 @@ function init-repository {
     flux reconcile source git flux-system
 }
 
-function init-project-infrastructure {
-    echo "initialising project instrastructure"
-    kubectl apply -f ./manifests/service_account.yaml
-    kubectl apply -f ./manifests/project.yaml
-    echo "waiting for project to be Ready"
-    kubectl wait --for=condition=Ready=true Project/ocm-applications -n mpas-system --timeout=60s
-}
-
 function wait-for-endpoint {
     until curl --output /dev/null --silent --fail "$1"; do
         sleep 0.1
